@@ -198,7 +198,7 @@ loop1:
     LONG $0xf07b43c4; WORD $0x19e8 // rorx   r13d,r8d,0x19
     LONG $0x0f65e3c4; WORD $0x04fa // vpalignr ymm7,ymm3,ymm2,0x4
     LONG $0xf07b43c4; WORD $0x0bf8 // rorx   r15d,r8d,0xb
-    LONG $0x30048d42               // lea    eax,[rax+r14*1]            
+    LONG $0x30048d42               // lea    eax,[rax+r14*1]
     LONG $0x231c8d47               // lea    r11d,[r11+r12*1]
     LONG $0xd472cdc5; BYTE $0x07   // vpsrld ymm6,ymm4,0x7
     LONG $0xf23842c4; BYTE $0xe2   // andn   r12d,r8d,r10d
@@ -1439,4 +1439,3 @@ done:
     WORD $0xf8c5; BYTE $0x77     // vzeroupper
 
     RET
-
