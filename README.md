@@ -2,6 +2,11 @@
 
 Accelerate SHA256 computations in pure Go for both Intel (AVX2, AVX, SSE) as well as ARM (arm64) platforms.
 
+This is a fork of https://github.com/minio/sha256-simd. Changes made:
+
+* Optimise for Krist mining by adding comparison operations for parts of the hash against the work.
+
+
 ## Introduction
 
 This package is designed as a drop-in replacement for `crypto/sha256`. For Intel CPUs it has three flavors for AVX2, AVX and SSE whereby the fastest method is automatically chosen depending on CPU capabilities. For ARM CPUs with the Cryptography Extensions advantage is taken of the SHA2 instructions resulting in a massive performance improvement.
@@ -22,9 +27,9 @@ Below is the speed in MB/s for a single core (ranked fast to slow) as well as th
 | 1.2 GHz ARM Cortex-A53            | crypto/sha256                |    6.1 MB/s |             |
 
 (*) Measured with the "unrolled"/"demacro-ed" AVX2 version. Due to some Golang assembly restrictions the AVX2 version that uses `defines` loses about 15% performance. The optimized version is contained in the git history so for maximum speed you want to do this after getting: `git cat-file blob 586b6e > sha256blockAvx2_amd64.s` (or vendor it for your project; see [here](https://github.com/minio/sha256-simd/blob/13b11bdf9b0580a756a111492d2ae382bab7ec79/sha256blockAvx2_amd64.s) to view it in its full glory).
- 
+
  See further down for detailed performance.
- 
+
 ## Comparison to other hashing techniques
 
 As measured on Intel Xeon (same as above) with AVX2 version:
@@ -53,7 +58,7 @@ ARM SHA Extensions
 ------------------
 
 The 64-bit ARMv8 core has introduced new instructions for SHA1 and SHA2 acceleration as part of the [Cryptography Extensions](http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0501f/CHDFJBCJ.html). Below you can see a small excerpt highlighting one of the rounds as is done for the SHA256 calculation process (for full code see [sha256block_arm64.s](https://github.com/minio/sha256-simd/blob/master/sha256block_arm64.s)).
- 
+
  ```
  sha256h    q2, q3, v9.4s
  sha256h2   q3, q4, v9.4s
@@ -72,10 +77,10 @@ Detailed benchmarks
 
 ### ARM64
 
-Benchmarks generated on a 1.2 Ghz Quad-Core ARM Cortex A53 equipped [Pine64](https://www.pine64.com/). 
+Benchmarks generated on a 1.2 Ghz Quad-Core ARM Cortex A53 equipped [Pine64](https://www.pine64.com/).
 
 ```
-minio@minio-arm:~/gopath/src/github.com/sha256-simd$ benchcmp golang.txt arm64.txt 
+minio@minio-arm:~/gopath/src/github.com/sha256-simd$ benchcmp golang.txt arm64.txt
 benchmark                 old ns/op     new ns/op     delta
 BenchmarkHash8Bytes-4     11836         1403          -88.15%
 BenchmarkHash1K-4         181143        3138          -98.27%
@@ -111,7 +116,7 @@ BenchmarkHash1M-12         189.10       353.14       1.87x
 ### AVX
 
 ```
-$ benchcmp go.txt avx.txt 
+$ benchcmp go.txt avx.txt
 benchmark                  old ns/op     new ns/op     delta
 BenchmarkHash8Bytes-12     446           346           -22.42%
 BenchmarkHash1K-12         5919          3701          -37.47%
@@ -128,7 +133,7 @@ BenchmarkHash1M-12         189.10       305.98       1.62x
 ### SSE
 
 ```
-$ benchcmp go.txt sse.txt 
+$ benchcmp go.txt sse.txt
 benchmark                  old ns/op     new ns/op     delta
 BenchmarkHash8Bytes-12     446           362           -18.83%
 BenchmarkHash1K-12         5919          3751          -36.63%

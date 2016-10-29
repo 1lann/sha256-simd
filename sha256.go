@@ -101,6 +101,22 @@ func Sum256(data []byte) [Size]byte {
 	return d.checkSum()
 }
 
+// Sums and compares
+func SumCmp256(data []byte, work int64) bool {
+	var d digest
+	d.Reset()
+	d.Write(data)
+	return d.checkCmpSum(work)
+}
+
+// Sums and returns number
+func SumToNum256(data []byte) int64 {
+	var d digest
+	d.Reset()
+	d.Write(data)
+	return d.checkSumToNum()
+}
+
 // Return size of checksum
 func (d *digest) Size() int { return Size }
 
@@ -173,4 +189,57 @@ func (d *digest) checkSum() [Size]byte {
 	}
 
 	return digest
+}
+
+func (d *digest) checkCmpSum(work int64) bool {
+	len := d.len
+	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+	var tmp [64]byte
+	tmp[0] = 0x80
+	if len%64 < 56 {
+		d.Write(tmp[0 : 56-len%64])
+	} else {
+		d.Write(tmp[0 : 64+56-len%64])
+	}
+
+	// Length in bits.
+	len <<= 3
+	for i := uint(0); i < 8; i++ {
+		tmp[i] = byte(len >> (56 - 8*i))
+	}
+	d.Write(tmp[0:8])
+
+	n := (int64(d.h[0]) << 16)
+
+	if n > work {
+		return false
+	}
+
+	n += (int64(d.h[1]) >> 16)
+	if n > work {
+		return false
+	}
+
+	return true
+}
+
+func (d *digest) checkSumToNum() int64 {
+	len := d.len
+	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+	var tmp [64]byte
+	tmp[0] = 0x80
+	if len%64 < 56 {
+		d.Write(tmp[0 : 56-len%64])
+	} else {
+		d.Write(tmp[0 : 64+56-len%64])
+	}
+
+	// Length in bits.
+	len <<= 3
+	for i := uint(0); i < 8; i++ {
+		tmp[i] = byte(len >> (56 - 8*i))
+	}
+	d.Write(tmp[0:8])
+
+	return (int64(d.h[0]) << 16) + (int64(d.h[1]) >> 16)
 }
