@@ -19,7 +19,6 @@ package sha256
 import (
 	"crypto/sha256"
 	"hash"
-	"runtime"
 )
 
 // Size - The size of a SHA256 checksum in bytes.
@@ -62,26 +61,6 @@ func (d *digest) Reset() {
 	d.len = 0
 }
 
-func block(dig *digest, p []byte) {
-	is386bit := runtime.GOARCH == "386"
-	isARM := runtime.GOARCH == "arm"
-	if is386bit || isARM {
-		blockGeneric(dig, p)
-	}
-	switch !is386bit && !isARM {
-	case avx2:
-		blockAvx2Go(dig, p)
-	case avx:
-		blockAvxGo(dig, p)
-	case ssse3:
-		blockSsseGo(dig, p)
-	case armSha:
-		blockArmGo(dig, p)
-	default:
-		blockGeneric(dig, p)
-	}
-}
-
 // New returns a new hash.Hash computing the SHA256 checksum.
 func New() hash.Hash {
 	if avx2 || avx || ssse3 || armSha {
@@ -102,19 +81,52 @@ func Sum256(data []byte) [Size]byte {
 }
 
 // Sums and compares
-func SumCmp256(data []byte, work int64) bool {
+func SumCmp256(data []byte, work uint32) bool {
 	var d digest
-	d.Reset()
-	d.Write(data)
-	return d.checkCmpSum(work)
+
+	d.h[0] = init0
+	d.h[1] = init1
+	d.h[2] = init2
+	d.h[3] = init3
+	d.h[4] = init4
+	d.h[5] = init5
+	d.h[6] = init6
+	d.h[7] = init7
+	d.len = 64
+
+	block(&d, data)
+
+	if d.h[0] > 16 {
+		return false
+	}
+
+	if (d.h[0]<<16)+(d.h[1]>>16) > work {
+		return false
+	}
+
+	return true
 }
 
-// Sums and returns number
 func SumToNum256(data []byte) int64 {
+	if data[41] != 0x80 {
+		panic("41st byte must be 0x80")
+	}
+
 	var d digest
-	d.Reset()
-	d.Write(data)
-	return d.checkSumToNum()
+
+	d.h[0] = init0
+	d.h[1] = init1
+	d.h[2] = init2
+	d.h[3] = init3
+	d.h[4] = init4
+	d.h[5] = init5
+	d.h[6] = init6
+	d.h[7] = init7
+	d.len = 64
+
+	block(&d, data)
+
+	return (int64(d.h[0]) << 16) + (int64(d.h[1]) >> 16)
 }
 
 // Return size of checksum
@@ -189,57 +201,4 @@ func (d *digest) checkSum() [Size]byte {
 	}
 
 	return digest
-}
-
-func (d *digest) checkCmpSum(work int64) bool {
-	len := d.len
-	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
-	var tmp [64]byte
-	tmp[0] = 0x80
-	if len%64 < 56 {
-		d.Write(tmp[0 : 56-len%64])
-	} else {
-		d.Write(tmp[0 : 64+56-len%64])
-	}
-
-	// Length in bits.
-	len <<= 3
-	for i := uint(0); i < 8; i++ {
-		tmp[i] = byte(len >> (56 - 8*i))
-	}
-	d.Write(tmp[0:8])
-
-	n := (int64(d.h[0]) << 16)
-
-	if n > work {
-		return false
-	}
-
-	n += (int64(d.h[1]) >> 16)
-	if n > work {
-		return false
-	}
-
-	return true
-}
-
-func (d *digest) checkSumToNum() int64 {
-	len := d.len
-	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
-	var tmp [64]byte
-	tmp[0] = 0x80
-	if len%64 < 56 {
-		d.Write(tmp[0 : 56-len%64])
-	} else {
-		d.Write(tmp[0 : 64+56-len%64])
-	}
-
-	// Length in bits.
-	len <<= 3
-	for i := uint(0); i < 8; i++ {
-		tmp[i] = byte(len >> (56 - 8*i))
-	}
-	d.Write(tmp[0:8])
-
-	return (int64(d.h[0]) << 16) + (int64(d.h[1]) >> 16)
 }
