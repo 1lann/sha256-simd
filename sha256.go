@@ -96,11 +96,11 @@ func SumCmp256(data []byte, work uint32) bool {
 
 	block(&d, data)
 
-	if d.h[0] > 16 {
+	if d.h[0] > 1 {
 		return false
 	}
 
-	if (d.h[0]<<16)+(d.h[1]>>16) > work {
+	if (d.h[0]<<16)|(d.h[1]>>16) > work {
 		return false
 	}
 
